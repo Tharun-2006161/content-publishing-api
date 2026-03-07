@@ -1,0 +1,17 @@
+submission_version: 1
+
+setup:
+  - command: "cp .env.example .env"
+    description: "Copy environment file"
+  - command: "docker-compose build"
+    description: "Build all Docker images"
+  - command: "docker-compose up -d db redis"
+    description: "Start database and cache services"
+
+test:
+  - command: "docker-compose run --rm -e NODE_ENV=test api npm test"
+    description: "Run automated test suite"
+
+start:
+  - command: "docker-compose up -d"
+    description: "Start all services including API, worker, and frontend"

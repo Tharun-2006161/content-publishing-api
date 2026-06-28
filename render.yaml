@@ -50,8 +50,8 @@ services:
           name: content-api
           property: url
 
-# 4. Redis Cache (Managed by Render)
-redis:
-  - name: content-redis
+  # 4. Redis Cache (Managed by Render)
+  - type: redis
+    name: content-redis
     region: ohio
     ipAllowList: [] # Allows internal Render services to connect

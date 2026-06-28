@@ -1,34 +1,21 @@
-const Redis = require('ioredis');
-const config = require('./index');
 const logger = require('../utils/logger');
 
-let redisClient = null;
+// Mock Redis client to allow running without a paid Redis instance on Render
+const mockRedisClient = {
+    get: async () => null,
+    setex: async () => null,
+    del: async () => null,
+    keys: async () => [],
+    on: () => {},
+    connect: async () => { logger.info('Redis disabled (Mock mode running for Free Tier)'); }
+};
 
 function getRedisClient() {
-    if (!redisClient) {
-        redisClient = new Redis(config.redis.url, {
-            lazyConnect: true,
-            maxRetriesPerRequest: 3,
-            retryStrategy(times) {
-                const delay = Math.min(times * 100, 3000);
-                return delay;
-            },
-        });
-
-        redisClient.on('connect', () => logger.info('Redis connected'));
-        redisClient.on('error', (err) => logger.error('Redis error:', err.message));
-        redisClient.on('close', () => logger.warn('Redis connection closed'));
-    }
-    return redisClient;
+    return mockRedisClient;
 }
 
 async function connectRedis() {
-    const client = getRedisClient();
-    try {
-        await client.connect();
-    } catch (err) {
-        logger.error('Failed to connect to Redis:', err.message);
-    }
+    await mockRedisClient.connect();
 }
 
 module.exports = { getRedisClient, connectRedis };

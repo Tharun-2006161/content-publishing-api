@@ -18,7 +18,9 @@ async function createPost({ title, content, authorId }) {
         author_id: authorId,
     });
 
-    return post;
+    const doc = post.toObject();
+    doc.id = doc._id;
+    return doc;
 }
 
 /**
@@ -56,7 +58,9 @@ async function updatePost(postId, { title, content }, userId) {
     await invalidatePattern('posts:published:*');
     await invalidateCache(CacheKeys.postRevisions(postId));
 
-    return post;
+    const doc = post.toObject();
+    doc.id = doc._id;
+    return doc;
 }
 
 /**
@@ -82,7 +86,9 @@ async function publishPost(postId, userId) {
     await invalidateCache(CacheKeys.publishedPost(postId));
     await invalidatePattern('posts:published:*');
 
-    return post;
+    const doc = post.toObject();
+    doc.id = doc._id;
+    return doc;
 }
 
 /**
@@ -109,7 +115,9 @@ async function schedulePost(postId, userId, scheduledFor) {
     post.scheduled_for = scheduledDate;
     await post.save();
 
-    return post;
+    const doc = post.toObject();
+    doc.id = doc._id;
+    return doc;
 }
 
 /**
@@ -130,7 +138,10 @@ async function deletePost(postId, userId) {
 async function getAuthorPost(postId, userId) {
     const post = await Post.findOne({ _id: postId, author_id: userId }).populate('author', 'id username email');
     if (!post) throw new AppError('Post not found', 404);
-    return post;
+    
+    const doc = post.toObject();
+    doc.id = doc._id;
+    return doc;
 }
 
 /**

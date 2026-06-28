@@ -40,7 +40,6 @@ services:
   - type: web
     name: content-frontend
     env: static
-    region: ohio
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: frontend/dist
     envVars:
@@ -48,7 +47,7 @@ services:
         fromService:
           type: web
           name: content-api
-          property: url
+          property: host
 
   # 4. Redis Cache (Managed by Render)
   - type: redis

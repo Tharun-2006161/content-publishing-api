@@ -10,7 +10,7 @@ process.env.UPLOAD_DIR = '/tmp/cms_test_uploads';
 
 const request = require('supertest');
 const app = require('../src/app');
-const sequelize = require('../src/config/database');
+const { connectDB, mongoose } = require('../src/config/database');
 
 describe('Auth API', () => {
     const testUser = {
@@ -20,8 +20,8 @@ describe('Auth API', () => {
     };
 
     afterAll(async () => {
-        await sequelize.query(`DELETE FROM users WHERE email = '${testUser.email}'`);
-        await sequelize.close();
+        const { User } = require('../src/models'); await User.deleteMany({ email: testUser.email });
+        await mongoose.connection.close();
     });
 
     describe('POST /auth/register', () => {
@@ -96,6 +96,7 @@ describe('Auth API', () => {
         let token;
 
         beforeAll(async () => {
+        await connectDB();
             const res = await request(app)
                 .post('/auth/login')
                 .send({ email: testUser.email, password: testUser.password });

@@ -1,5 +1,5 @@
 const slugifyLib = require('slugify');
-const sequelize = require('../config/database');
+const { Post } = require('../models');
 
 /**
  * Generate a unique slug from a title.
@@ -16,20 +16,14 @@ async function generateUniqueSlug(title, excludeId = null) {
     let counter = 1;
 
     while (true) {
-        let query = `SELECT id FROM posts WHERE slug = :slug`;
-        const replacements = { slug };
-
+        const query = { slug };
         if (excludeId) {
-            query += ` AND id != :excludeId`;
-            replacements.excludeId = excludeId;
+            query._id = { $ne: excludeId };
         }
 
-        const [rows] = await sequelize.query(query, {
-            replacements,
-            type: sequelize.QueryTypes.SELECT,
-        });
+        const existing = await Post.findOne(query);
 
-        if (!rows) {
+        if (!existing) {
             return slug;
         }
 

@@ -1,36 +1,34 @@
 const bcrypt = require('bcryptjs');
-const sequelize = require('../config/database');
+const { connectDB, mongoose } = require('../config/database');
+const { User } = require('../models');
 const logger = require('../utils/logger');
 
 async function seed() {
     try {
-        await sequelize.authenticate();
+        await connectDB();
 
         // Check if already seeded
-        const [rows] = await sequelize.query("SELECT COUNT(*) as count FROM users");
-        if (parseInt(rows[0].count) > 0) {
+        const count = await User.countDocuments();
+        if (count > 0) {
             logger.info('Database already seeded, skipping.');
-            await sequelize.close();
+            await mongoose.connection.close();
             return;
         }
 
-        const passwordHash = await bcrypt.hash('Password123!', 12);
+        const password_hash = await bcrypt.hash('Password123!', 12);
 
-        await sequelize.query(`
-      INSERT INTO users (id, username, email, password_hash, role, created_at, updated_at)
-      VALUES
-        (gen_random_uuid(), 'admin', 'admin@example.com', '${passwordHash}', 'admin', NOW(), NOW()),
-        (gen_random_uuid(), 'author1', 'author1@example.com', '${passwordHash}', 'author', NOW(), NOW()),
-        (gen_random_uuid(), 'author2', 'author2@example.com', '${passwordHash}', 'author', NOW(), NOW())
-      ON CONFLICT DO NOTHING;
-    `);
+        await User.insertMany([
+            { username: 'admin', email: 'admin@example.com', password_hash, role: 'admin' },
+            { username: 'author1', email: 'author1@example.com', password_hash, role: 'author' },
+            { username: 'author2', email: 'author2@example.com', password_hash, role: 'author' }
+        ]);
 
         logger.info('Seed data inserted: 3 users (admin, author1, author2) with password: Password123!');
     } catch (err) {
         logger.error('Seed failed:', err);
         // Don't exit on seed failure, it's non-fatal
     } finally {
-        await sequelize.close();
+        await mongoose.connection.close();
     }
 }
 

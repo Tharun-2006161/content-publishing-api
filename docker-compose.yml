@@ -2,20 +2,18 @@ version: "3.9"
 
 services:
   db:
-    image: postgres:16-alpine
+    image: mongo:6
     container_name: cms_db
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-cms_db}
-      POSTGRES_USER: ${POSTGRES_USER:-cms_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cms_password}
+      MONGO_INITDB_DATABASE: cms_db
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mongo_data:/data/db
     ports:
-      - "5432:5432"
+      - "27017:27017"
     networks:
       - cms_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cms_user} -d ${POSTGRES_DB:-cms_db}"]
+      test: ["CMD-SHELL", "mongosh --eval 'db.runCommand(\"ping\").ok' localhost:27017/test --quiet"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -41,11 +39,7 @@ services:
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: 3000
-      POSTGRES_HOST: db
-      POSTGRES_PORT: 5432
-      POSTGRES_DB: ${POSTGRES_DB:-cms_db}
-      POSTGRES_USER: ${POSTGRES_USER:-cms_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cms_password}
+      MONGO_URI: ${MONGO_URI:-mongodb://db:27017/cms_db}
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-super_secret_jwt_key_change_in_production}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
@@ -70,11 +64,7 @@ services:
     container_name: cms_worker
     environment:
       NODE_ENV: ${NODE_ENV:-production}
-      POSTGRES_HOST: db
-      POSTGRES_PORT: 5432
-      POSTGRES_DB: ${POSTGRES_DB:-cms_db}
-      POSTGRES_USER: ${POSTGRES_USER:-cms_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cms_password}
+      MONGO_URI: ${MONGO_URI:-mongodb://db:27017/cms_db}
       REDIS_URL: redis://redis:6379
       WORKER_INTERVAL_MS: ${WORKER_INTERVAL_MS:-60000}
     depends_on:
@@ -102,7 +92,7 @@ services:
     restart: unless-stopped
 
 volumes:
-  postgres_data:
+  mongo_data:
   uploads_data:
 
 networks:

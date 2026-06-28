@@ -1,6 +1,6 @@
 require('dotenv').config();
 const schedule = require('node-schedule');
-const sequelize = require('../config/database');
+const { connectDB, mongoose } = require('../config/database');
 const { connectRedis } = require('../config/redis');
 const { publishScheduledPosts } = require('./scheduler');
 const logger = require('../utils/logger');
@@ -11,7 +11,7 @@ const INTERVAL_MS = config.worker.intervalMs;
 async function startWorker() {
     // Connect to DB
     try {
-        await sequelize.authenticate();
+        await connectDB();
         logger.info('[Worker] Database connected.');
     } catch (err) {
         logger.error('[Worker] Failed to connect to database:', err);
@@ -43,7 +43,7 @@ async function startWorker() {
     process.on('SIGTERM', () => {
         logger.info('[Worker] Shutting down...');
         schedule.gracefulShutdown().then(() => {
-            sequelize.close();
+            mongoose.connection.close();
             process.exit(0);
         });
     });

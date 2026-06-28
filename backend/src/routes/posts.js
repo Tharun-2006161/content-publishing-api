@@ -116,7 +116,7 @@ router.get('/:id/revisions', async (req, res) => {
     if (cached) return res.json({ success: true, revisions: cached });
 
     // Verify ownership
-    const post = await Post.findOne({ where: { id: req.params.id, author_id: req.user.id } });
+    const post = await Post.findOne({ _id: req.params.id, author_id: req.user.id });
     if (!post) throw new AppError('Post not found or access denied', 404);
 
     const revisions = await PostRevision.findAll({

@@ -1,38 +1,25 @@
 require('dotenv').config();
-const schedule = require('node-schedule');
-const sequelize = require('../config/database');
+const { connectDB } = require('../config/database');
+const { Post } = require('../models');
 const logger = require('../utils/logger');
 const config = require('../config');
 
 const INTERVAL_MS = config.worker.intervalMs;
 
-/**
- * Idempotent scheduler: publishes posts with status='scheduled' where scheduled_for <= NOW()
- * Uses a transaction to prevent double-publishing.
- */
 async function publishScheduledPosts() {
-    const t = await sequelize.transaction();
     try {
-        const [updatedCount] = await sequelize.query(
-            `UPDATE posts
-       SET status = 'published',
-           published_at = NOW(),
-           updated_at = NOW()
-       WHERE status = 'scheduled'
-         AND scheduled_for <= NOW()`,
-            { transaction: t, type: sequelize.QueryTypes.UPDATE }
+        const result = await Post.updateMany(
+            { status: 'scheduled', scheduled_for: { $lte: new Date() } },
+            { $set: { status: 'published', published_at: new Date(), updated_at: new Date() } }
         );
 
-        await t.commit();
+        const updatedCount = result.modifiedCount;
 
         if (updatedCount > 0) {
             logger.info(`[Worker] Published ${updatedCount} scheduled post(s).`);
-
-            // Invalidate cache for published posts listing
             try {
                 const { getRedisClient } = require('../config/redis');
                 const redis = getRedisClient();
-                // Invalidate all published list caches
                 const keys = await redis.keys('posts:published:*');
                 if (keys.length > 0) await redis.del(...keys);
                 logger.info(`[Worker] Invalidated ${keys.length} cache key(s).`);
@@ -45,7 +32,6 @@ async function publishScheduledPosts() {
 
         return updatedCount;
     } catch (err) {
-        await t.rollback();
         logger.error('[Worker] Error publishing scheduled posts:', err);
         return 0;
     }

@@ -10,7 +10,7 @@ process.env.UPLOAD_DIR = '/tmp/cms_test_uploads';
 
 const request = require('supertest');
 const app = require('../src/app');
-const sequelize = require('../src/config/database');
+const { connectDB, mongoose } = require('../src/config/database');
 const { publishScheduledPosts } = require('../src/worker/scheduler');
 
 describe('Scheduler Worker', () => {
@@ -19,6 +19,7 @@ describe('Scheduler Worker', () => {
     const suffix = Date.now();
 
     beforeAll(async () => {
+        await connectDB();
         const res = await request(app)
             .post('/auth/register')
             .send({
@@ -31,9 +32,9 @@ describe('Scheduler Worker', () => {
     });
 
     afterAll(async () => {
-        await sequelize.query(`DELETE FROM posts WHERE author_id = '${userId}'`);
-        await sequelize.query(`DELETE FROM users WHERE id = '${userId}'`);
-        await sequelize.close();
+        const { Post, User } = require('../src/models'); await Post.deleteMany({ author_id: userId });
+        await User.deleteMany({ _id: userId });
+        await mongoose.connection.close();
     });
 
     it('should automatically publish a post whose scheduled_for is in the past', async () => {
@@ -46,10 +47,7 @@ describe('Scheduler Worker', () => {
         const postId = createRes.body.post.id;
 
         // Manually set it to scheduled with a past timestamp (bypass validation)
-        await sequelize.query(
-            `UPDATE posts SET status = 'scheduled', scheduled_for = NOW() - INTERVAL '1 minute' WHERE id = :id`,
-            { replacements: { id: postId } }
-        );
+        await Post.updateOne({ _id: postId }, { $set: { status: 'scheduled', scheduled_for: new Date(Date.now() - 60000) } });
 
         // Run the worker
         const count = await publishScheduledPosts();

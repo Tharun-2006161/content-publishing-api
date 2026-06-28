@@ -1,0 +1,57 @@
+version: "1"
+
+services:
+  # 1. Backend Express API
+  - type: web
+    name: content-api
+    env: node
+    region: ohio
+    buildCommand: cd backend && npm install
+    # Run migrations/seed before starting
+    startCommand: cd backend && npm run migrate && node src/db/seed.js && npm start
+    envVars:
+      - key: MONGO_URI
+        value: mongodb+srv://pardhu:Tharun%402006@cluster0.wsr0mth.mongodb.net/cms_db?appName=Cluster0
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: content-redis
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+
+  # 2. Background Scheduler Worker
+  - type: worker
+    name: content-worker
+    env: node
+    region: ohio
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm run worker
+    envVars:
+      - key: MONGO_URI
+        value: mongodb+srv://pardhu:Tharun%402006@cluster0.wsr0mth.mongodb.net/cms_db?appName=Cluster0
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: content-redis
+          property: connectionString
+
+  # 3. React Frontend
+  - type: web
+    name: content-frontend
+    env: static
+    region: ohio
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: frontend/dist
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: content-api
+          property: url
+
+# 4. Redis Cache (Managed by Render)
+redis:
+  - name: content-redis
+    region: ohio
+    ipAllowList: [] # Allows internal Render services to connect

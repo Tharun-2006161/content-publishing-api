@@ -8,7 +8,7 @@ const config = require('../config');
 const { AppError } = require('../middleware/errorHandler');
 
 const registerSchema = Joi.object({
-    username: Joi.string().alphanum().min(3).max(50).required(),
+    username: Joi.string().pattern(/^[a-zA-Z0-9_]+$/).min(3).max(50).required(),
     email: Joi.string().email().required(),
     password: Joi.string().min(8).required(),
     role: Joi.string().valid('author').default('author'),
@@ -28,10 +28,10 @@ router.post('/register', async (req, res) => {
     const { error, value } = registerSchema.validate(req.body);
     if (error) throw new AppError(error.details[0].message, 400);
 
-    const existing = await User.findOne({ where: { email: value.email } });
+    const existing = await User.findOne({ email: value.email });
     if (existing) throw new AppError('Email already registered', 409);
 
-    const existingUsername = await User.findOne({ where: { username: value.username } });
+    const existingUsername = await User.findOne({ username: value.username });
     if (existingUsername) throw new AppError('Username already taken', 409);
 
     const password_hash = await bcrypt.hash(value.password, 12);
@@ -64,7 +64,7 @@ router.post('/login', async (req, res) => {
     const { error, value } = loginSchema.validate(req.body);
     if (error) throw new AppError(error.details[0].message, 400);
 
-    const user = await User.findOne({ where: { email: value.email } });
+    const user = await User.findOne({ email: value.email });
     if (!user) throw new AppError('Invalid email or password', 401);
 
     const isValid = await bcrypt.compare(value.password, user.password_hash);
@@ -89,7 +89,7 @@ router.post('/login', async (req, res) => {
  * @access Private
  */
 router.get('/me', require('../middleware/auth').verifyToken, async (req, res) => {
-    const user = await User.findByPk(req.user.id, {
+    const user = await User.findById(req.user.id, {
         attributes: ['id', 'username', 'email', 'role', 'created_at'],
     });
     if (!user) throw new AppError('User not found', 404);

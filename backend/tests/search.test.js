@@ -10,7 +10,7 @@ process.env.UPLOAD_DIR = '/tmp/cms_test_uploads';
 
 const request = require('supertest');
 const app = require('../src/app');
-const sequelize = require('../src/config/database');
+const { connectDB, mongoose } = require('../src/config/database');
 
 describe('Search API', () => {
     let token;
@@ -18,6 +18,7 @@ describe('Search API', () => {
     const suffix = Date.now();
 
     beforeAll(async () => {
+        await connectDB();
         // Register user
         const res = await request(app)
             .post('/auth/register')
@@ -43,9 +44,9 @@ describe('Search API', () => {
     });
 
     afterAll(async () => {
-        await sequelize.query(`DELETE FROM posts WHERE author_id = '${userId}'`);
-        await sequelize.query(`DELETE FROM users WHERE id = '${userId}'`);
-        await sequelize.close();
+        const { Post, User } = require('../src/models'); await Post.deleteMany({ author_id: userId });
+        await User.deleteMany({ _id: userId });
+        await mongoose.connection.close();
     });
 
     it('should return results for matching published posts', async () => {

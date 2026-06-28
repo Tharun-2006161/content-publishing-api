@@ -1,55 +1,19 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const mongoose = require('mongoose');
 
-const Post = sequelize.define('Post', {
-    id: {
-        type: DataTypes.UUID,
-        defaultValue: DataTypes.UUIDV4,
-        primaryKey: true,
-    },
-    title: {
-        type: DataTypes.STRING(500),
-        allowNull: false,
-    },
-    slug: {
-        type: DataTypes.STRING(600),
-        allowNull: false,
-        unique: true,
-    },
-    content: {
-        type: DataTypes.TEXT,
-        allowNull: false,
-        defaultValue: '',
-    },
-    status: {
-        type: DataTypes.ENUM('draft', 'scheduled', 'published'),
-        allowNull: false,
-        defaultValue: 'draft',
-    },
-    author_id: {
-        type: DataTypes.UUID,
-        allowNull: false,
-    },
-    scheduled_for: {
-        type: DataTypes.DATE,
-        allowNull: true,
-    },
-    published_at: {
-        type: DataTypes.DATE,
-        allowNull: true,
-    },
+const postSchema = new mongoose.Schema({
+    title: { type: String, required: true, maxlength: 500 },
+    slug: { type: String, required: true, unique: true, maxlength: 600 },
+    content: { type: String, default: '' },
+    status: { type: String, enum: ['draft', 'scheduled', 'published'], default: 'draft' },
+    author_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    scheduled_for: { type: Date, default: null },
+    published_at: { type: Date, default: null }
 }, {
-    tableName: 'posts',
-    underscored: true,
-    timestamps: true,
-    indexes: [
-        { unique: true, fields: ['slug'] },
-        { fields: ['author_id'] },
-        { fields: ['status'] },
-        { fields: ['scheduled_for'] },
-        { fields: ['published_at'] },
-        // Full-text search index created in migration
-    ],
+    timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });
 
-module.exports = Post;
+postSchema.index({ title: 'text', content: 'text' });
+postSchema.virtual('id').get(function() { return this._id.toHexString(); });
+postSchema.set('toJSON', { virtuals: true });
+
+module.exports = mongoose.model('Post', postSchema);

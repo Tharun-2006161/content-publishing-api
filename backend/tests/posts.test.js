@@ -10,7 +10,7 @@ process.env.UPLOAD_DIR = '/tmp/cms_test_uploads';
 
 const request = require('supertest');
 const app = require('../src/app');
-const sequelize = require('../src/config/database');
+const { connectDB, mongoose } = require('../src/config/database');
 
 describe('Posts API', () => {
     let token;
@@ -24,6 +24,7 @@ describe('Posts API', () => {
     };
 
     beforeAll(async () => {
+        await connectDB();
         // Register and login
         const regRes = await request(app).post('/auth/register').send(authorData);
         token = regRes.body.token;
@@ -31,9 +32,9 @@ describe('Posts API', () => {
     });
 
     afterAll(async () => {
-        await sequelize.query(`DELETE FROM posts WHERE author_id = '${userId}'`);
-        await sequelize.query(`DELETE FROM users WHERE id = '${userId}'`);
-        await sequelize.close();
+        const { Post, User } = require('../src/models'); await Post.deleteMany({ author_id: userId });
+        await User.deleteMany({ _id: userId });
+        await mongoose.connection.close();
     });
 
     describe('POST /posts', () => {

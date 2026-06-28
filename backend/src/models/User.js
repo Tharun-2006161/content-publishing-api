@@ -1,41 +1,15 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const mongoose = require('mongoose');
 
-const User = sequelize.define('User', {
-    id: {
-        type: DataTypes.UUID,
-        defaultValue: DataTypes.UUIDV4,
-        primaryKey: true,
-    },
-    username: {
-        type: DataTypes.STRING(50),
-        allowNull: false,
-        unique: true,
-    },
-    email: {
-        type: DataTypes.STRING(255),
-        allowNull: false,
-        unique: true,
-        validate: { isEmail: true },
-    },
-    password_hash: {
-        type: DataTypes.STRING,
-        allowNull: false,
-    },
-    role: {
-        type: DataTypes.ENUM('author', 'admin'),
-        allowNull: false,
-        defaultValue: 'author',
-    },
+const userSchema = new mongoose.Schema({
+    username: { type: String, required: true, unique: true, maxlength: 50 },
+    email: { type: String, required: true, unique: true, maxlength: 255 },
+    password_hash: { type: String, required: true },
+    role: { type: String, enum: ['author', 'admin'], default: 'author' }
 }, {
-    tableName: 'users',
-    underscored: true,
-    timestamps: true,
-    indexes: [
-        { unique: true, fields: ['email'] },
-        { unique: true, fields: ['username'] },
-        { fields: ['role'] },
-    ],
+    timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });
 
-module.exports = User;
+userSchema.virtual('id').get(function() { return this._id.toHexString(); });
+userSchema.set('toJSON', { virtuals: true });
+
+module.exports = mongoose.model('User', userSchema);

@@ -1,43 +1,14 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const mongoose = require('mongoose');
 
-const PostRevision = sequelize.define('PostRevision', {
-    id: {
-        type: DataTypes.UUID,
-        defaultValue: DataTypes.UUIDV4,
-        primaryKey: true,
-    },
-    post_id: {
-        type: DataTypes.UUID,
-        allowNull: false,
-    },
-    title_snapshot: {
-        type: DataTypes.STRING(500),
-        allowNull: false,
-    },
-    content_snapshot: {
-        type: DataTypes.TEXT,
-        allowNull: false,
-        defaultValue: '',
-    },
-    revision_author_id: {
-        type: DataTypes.UUID,
-        allowNull: false,
-    },
-    revision_timestamp: {
-        type: DataTypes.DATE,
-        allowNull: false,
-        defaultValue: DataTypes.NOW,
-    },
-}, {
-    tableName: 'post_revisions',
-    underscored: true,
-    timestamps: false,
-    indexes: [
-        { fields: ['post_id'] },
-        { fields: ['revision_author_id'] },
-        { fields: ['revision_timestamp'] },
-    ],
+const postRevisionSchema = new mongoose.Schema({
+    post_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Post', required: true },
+    title_snapshot: { type: String, required: true, maxlength: 500 },
+    content_snapshot: { type: String, default: '' },
+    revision_author_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    revision_timestamp: { type: Date, default: Date.now }
 });
 
-module.exports = PostRevision;
+postRevisionSchema.virtual('id').get(function() { return this._id.toHexString(); });
+postRevisionSchema.set('toJSON', { virtuals: true });
+
+module.exports = mongoose.model('PostRevision', postRevisionSchema);

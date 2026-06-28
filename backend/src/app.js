@@ -24,7 +24,7 @@ const app = express();
 // Security middleware
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors({
-    origin: process.env.FRONTEND_URL || '*',
+    origin: process.env.FRONTEND_URL || true, // 'true' reflects the request origin
     credentials: true,
 }));
 

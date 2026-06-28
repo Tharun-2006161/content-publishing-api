@@ -1,8 +1,13 @@
 import axios from 'axios';
 
 let API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-if (API_URL && !API_URL.startsWith('http')) {
-    API_URL = 'https://' + API_URL;
+if (API_URL) {
+    if (!API_URL.startsWith('http')) {
+        API_URL = 'https://' + API_URL;
+    }
+    if (!API_URL.includes('localhost') && !API_URL.includes('onrender.com')) {
+        API_URL = API_URL + '.onrender.com';
+    }
 }
 
 const api = axios.create({

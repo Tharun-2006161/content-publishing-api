@@ -14,6 +14,13 @@ const postSchema = new mongoose.Schema({
 
 postSchema.index({ title: 'text', content: 'text' });
 postSchema.virtual('id').get(function() { return this._id.toHexString(); });
+postSchema.virtual('author', {
+    ref: 'User',
+    localField: 'author_id',
+    foreignField: '_id',
+    justOne: true
+});
 postSchema.set('toJSON', { virtuals: true });
+postSchema.set('toObject', { virtuals: true });
 
 module.exports = mongoose.model('Post', postSchema);

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const sequelize = require('../config/database');
+const { mongoose } = require('../config/database');
 const { Post, User } = require('../models');
 const { getCached, setCached, CacheKeys } = require('../services/cacheService');
 
@@ -16,19 +16,22 @@ router.get('/', async (req, res) => {
     const cached = await getCached(cacheKey);
     if (cached) return res.json({ success: true, ...cached, cached: true });
 
-    const offset = (page - 1) * limit;
-    const { count, rows } = await Post.findAndCountAll({
-        where: { status: 'published' },
-        order: [['published_at', 'DESC']],
-        limit,
-        offset,
-        attributes: ['id', 'title', 'slug', 'content', 'status', 'published_at', 'created_at'],
-        include: [{ model: User, as: 'author', attributes: ['id', 'username'] }],
-    });
+    const skip = (page - 1) * limit;
+    const count = await Post.countDocuments({ status: 'published' });
+    const posts = await Post.find({ status: 'published' })
+        .sort({ published_at: -1 })
+        .skip(skip)
+        .limit(limit)
+        .select('id title slug content status published_at created_at author_id')
+        .populate('author', 'id username');
 
     const result = {
-        posts: rows,
-        pagination: { page, limit, total: count, totalPages: Math.ceil(count / limit) },
+        posts: posts.map(p => {
+            const doc = p.toObject();
+            doc.id = doc._id;
+            return doc;
+        }),
+        pagination: { page, limit, total: count, totalPages: Math.ceil(count / limit) || 1 },
     };
 
     await setCached(cacheKey, result);
@@ -44,18 +47,19 @@ router.get('/:id', async (req, res) => {
     const cached = await getCached(cacheKey);
     if (cached) return res.json({ success: true, post: cached, cached: true });
 
-    const post = await Post.findOne({
-        where: { id: req.params.id, status: 'published' },
-        attributes: ['id', 'title', 'slug', 'content', 'status', 'published_at', 'created_at'],
-        include: [{ model: User, as: 'author', attributes: ['id', 'username'] }],
-    });
+    const post = await Post.findOne({ _id: req.params.id, status: 'published' })
+        .select('id title slug content status published_at created_at author_id')
+        .populate('author', 'id username');
 
     if (!post) {
         return res.status(404).json({ success: false, message: 'Published post not found' });
     }
 
-    await setCached(cacheKey, post);
-    res.json({ success: true, post });
+    const doc = post.toObject();
+    doc.id = doc._id;
+
+    await setCached(cacheKey, doc);
+    res.json({ success: true, post: doc });
 });
 
 /**
@@ -70,45 +74,29 @@ router.get('/search', async (req, res) => {
 
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10));
-    const offset = (page - 1) * limit;
+    const skip = (page - 1) * limit;
 
-    const [results] = await sequelize.query(
-        `SELECT
-       p.id, p.title, p.slug, p.content, p.status, p.published_at, p.created_at,
-       u.id as author_id, u.username as author_username,
-       ts_rank(p.search_vector, plainto_tsquery('english', :query)) AS rank,
-       COUNT(*) OVER() as total_count
-     FROM posts p
-     JOIN users u ON p.author_id = u.id
-     WHERE p.status = 'published'
-       AND p.search_vector @@ plainto_tsquery('english', :query)
-     ORDER BY rank DESC
-     LIMIT :limit OFFSET :offset`,
-        {
-            replacements: { query: q, limit, offset },
-            type: sequelize.QueryTypes.SELECT,
-        }
-    );
+    const query = { status: 'published', $text: { $search: q } };
+    
+    const count = await Post.countDocuments(query);
+    const posts = await Post.find(query, { score: { $meta: "textScore" } })
+        .sort({ score: { $meta: "textScore" } })
+        .skip(skip)
+        .limit(limit)
+        .populate('author', 'id username');
 
-    const posts = results.map(r => ({
-        id: r.id,
-        title: r.title,
-        slug: r.slug,
-        content: r.content,
-        status: r.status,
-        published_at: r.published_at,
-        created_at: r.created_at,
-        author: { id: r.author_id, username: r.author_username },
-        rank: parseFloat(r.rank),
-    }));
-
-    const total = results.length > 0 ? parseInt(results[0].total_count) : 0;
+    const formattedPosts = posts.map(p => {
+        const doc = p.toObject();
+        doc.id = doc._id;
+        doc.rank = doc.score;
+        return doc;
+    });
 
     res.json({
         success: true,
         query: q,
-        posts,
-        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+        posts: formattedPosts,
+        pagination: { page, limit, total: count, totalPages: Math.ceil(count / limit) || 1 },
     });
 });
 
